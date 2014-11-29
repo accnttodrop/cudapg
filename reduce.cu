@@ -28,6 +28,7 @@ void generateSecurityData(int perBin,int bins,Security **securities) {
       sec.binId1 = (i+1); 
       generateData(2048,&sec.price);
       *((*securities + total)) = sec;
+      total++;
     }
   }
 }   
@@ -35,5 +36,6 @@ void generateSecurityData(int perBin,int bins,Security **securities) {
 int main() { 
   Security *securities;
   generateSecurityData(256,32,&securities);
+  printf("Id for %d\n",securities[10].id);
   return 0;
 } 
