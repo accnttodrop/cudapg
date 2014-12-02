@@ -58,10 +58,16 @@ void generateIndexWeights(PortfolioComponent* portfolio,int totalCount){
     bins[portfolio[q].sec.binId1-1]  += portfolio[q].sec.price[0];
   }
   for(int q = 0; q < totalCount; q++) {
-    portfolio[q].weight[0]  = portfolio[q].sec.price[0]/totalValue;
-    portfolio[q].bin1Weight[0] = portfolio[q].sec.price[0]/
+    float weight  = portfolio[q].sec.price[0]/totalValue;
+    float binWeight = portfolio[q].sec.price[0]/
       bins[portfolio[q].sec.binId1-1];
+    for(int i = 0; i < TotalDays; i++) {
+      portfolio[q].weight[i] = weight;
+      portfolio[q].bin1Weight[i] = binWeight;
+    }
+
   }
+ 
 }
 
 void generatePortfolio(Security *securities,int totalCount
