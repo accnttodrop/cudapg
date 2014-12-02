@@ -1,5 +1,6 @@
 #include "stdlib.h"
 #include "stdio.h"
+#include "string.h"
 
 typedef struct {
   int  id;
@@ -7,8 +8,21 @@ typedef struct {
   int  binId2;
   float *price;
     } Security; 
+
+typedef struct {
+  Security sec;
+  float *weight;
+  float *bin1Weight;
+  float *bin2Weight;
+} PortfolioComponent;
+
+typedef PortfolioComponent*  Portfolio;
+
 const int TotalDays = 2048;
 const int IndexOffset = 75000;
+const float InitialInvestment = 10000;
+const int SecurityPerBin = 16;
+const int TotalBin = 8;
 
 void generateData(int totalCount,float **ptr) {
   *ptr = NULL; 
@@ -34,27 +48,62 @@ void generateSecurityData(int perBin,int bins,Security **securities) {
   }
 }   
 
-Security generateIndex(Security *securities,int totalCount) {
-  Security index;
-  index.id = IndexOffset;
-  index.binId1 = -1;
-  index.price = (float *) malloc(TotalDays * sizeof(float));
-  for(int i = 0; i < TotalDays; i++) {
-    float value = 0;
-    for(int q = 0; q < totalCount; q++) {
-      value = value + securities[q].price[i];
-    }
-    index.price[i] = value; 
+
+void generateIndexWeights(PortfolioComponent* portfolio,int totalCount){
+  float totalValue = 0;
+  float* bins = (float *) malloc(TotalBin * sizeof(float));
+  memset(bins,0,TotalBin * sizeof(float));
+  for(int q = 0; q < totalCount; q++) {
+    totalValue +=  portfolio[q].sec.price[0];
+    bins[portfolio[q].sec.binId1-1]  += portfolio[q].sec.price[0];
   }
-  return index;
+  for(int q = 0; q < totalCount; q++) {
+    portfolio[q].weight[0]  = portfolio[q].sec.price[0]/totalValue;
+    portfolio[q].bin1Weight[0] = portfolio[q].sec.price[0]/
+      bins[portfolio[q].sec.binId1-1];
+  }
+}
+
+void generatePortfolio(Security *securities,int totalCount
+		       ,PortfolioComponent **portfolio) {
+  *portfolio = NULL;
+  *portfolio = (PortfolioComponent *) malloc(totalCount * sizeof(PortfolioComponent));
+  size_t daysSize = TotalDays * sizeof(float);
+  for(int q = 0; q < totalCount; q++) {
+    PortfolioComponent component;
+    component.sec = securities[q];
+    component.weight = (float *) malloc(daysSize);
+    component.bin1Weight = (float *) malloc(daysSize);
+    component.bin2Weight = (float *) malloc(daysSize);
+    memset(component.weight,0,daysSize); 
+    memset(component.bin1Weight,0,daysSize); 
+    memset(component.bin2Weight,0,daysSize); 
+    *((*portfolio + q)) = component;
+  }
 }
 
 int main() { 
   Security *securities;
-  generateSecurityData(256,32,&securities);
-  printf("Securities Generated"); 
-  Security idx =  generateIndex(securities,256*32); 
-  printf("\nIndex Generated.\nEntry Price\t%f\nExit Price\t%f\n",idx.price[0],
-	 idx.price[TotalDays-1]);
+  generateSecurityData(SecurityPerBin,TotalBin,&securities);
+  printf("Securities Generated\n"); 
+  Portfolio index;
+  int totalCount = SecurityPerBin * TotalBin;
+  generatePortfolio(securities,totalCount,&index);
+  printf("%d\n",index[3].sec.id);
+  generateIndexWeights(index,totalCount); 
+  float w = 0;
+  float binw[TotalBin];
+  memset(binw,0,TotalBin * sizeof(float)); 
+  for(int q = 0 ; q < totalCount; q++) {
+    printf("\nWeight for %d security is %f and %d bin weight is %f",index[q].sec.id
+	   ,index[q].weight[0],index[q].sec.binId1, index[q].bin1Weight[0]);
+    w += index[q].weight[0];
+    binw[index[q].sec.binId1-1] += index[q].bin1Weight[0];
+  } 
+  printf("\nTotal Weight %f",w);
+  for(int i = 0; i < TotalBin; i++) {
+    printf("\nBin %d Weight %f",i+1,binw[i]);
+  }
+  printf("\n");
   return 0;
 } 
