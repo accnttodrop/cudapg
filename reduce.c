@@ -14,12 +14,12 @@ void generateData(int totalCount,float **ptr) {
   *ptr = NULL; 
   *ptr = (float *) malloc(totalCount * sizeof(float));
   for(int i = 0;i < totalCount; i++) {
-    *((*ptr) + i) = 20.0+((double)rand()/(double)(RAND_MAX-1))*100;
+    *((*ptr) + i) = 2.0+((double)rand()/(double)(RAND_MAX-1))*100;
   }
 }
 
 void generateSecurityData(int perBin,int bins,Security **securities) {
-  int total = 1;
+  int total = 0;
   *securities = NULL;
   *securities = (Security *)malloc(perBin*bins*sizeof(Security));
   for(int i =0;i < bins; i++) {
@@ -40,7 +40,11 @@ Security generateIndex(Security *securities,int totalCount) {
   index.binId1 = -1;
   index.price = (float *) malloc(TotalDays * sizeof(float));
   for(int i = 0; i < TotalDays; i++) {
-
+    float value = 0;
+    for(int q = 0; q < totalCount; q++) {
+      value = value + securities[q].price[i];
+    }
+    index.price[i] = value; 
   }
   return index;
 }
@@ -50,6 +54,7 @@ int main() {
   generateSecurityData(256,32,&securities);
   printf("Securities Generated"); 
   Security idx =  generateIndex(securities,256*32); 
-  printf("\nIndex Generated. Id %f\n",idx.price[3]);
+  printf("\nIndex Generated.\nEntry Price\t%f\nExit Price\t%f\n",idx.price[0],
+	 idx.price[TotalDays-1]);
   return 0;
 } 
