@@ -18,11 +18,19 @@ typedef struct {
 
 typedef PortfolioComponent*  Portfolio;
 
-const int TotalDays = 2048;
+typedef struct {
+  Portfolio portfolio; 
+  float *price;
+  float *bin1;
+  float *bin2; 
+} PortfolioData;
+
+
+const int TotalDays = 2048*128;
 const int IndexOffset = 75000;
 const float InitialInvestment = 10000;
-const int SecurityPerBin = 16;
-const int TotalBin = 8;
+const int SecurityPerBin = 2048;
+const int TotalBin = 1024;
 
 void generateData(int totalCount,float **ptr) {
   *ptr = NULL; 
@@ -111,13 +119,30 @@ void generatePortfolio(Security *securities,int totalCount
   }
 }
 
+PortfolioData* calculatePortfolioData( Portfolio components,
+			    int totalCount) {
+  PortfolioData* portfolio = (PortfolioData*) malloc(sizeof(PortfolioData));
+  portfolio->portfolio = components;
+  portfolio->price = (float *) malloc(totalCount * sizeof(float)); 
+  portfolio->bin1  = (float *) malloc(totalCount * sizeof(float)); 
+  portfolio->bin2  = (float *) malloc(totalCount * sizeof(float)); 
+  for(int i = 0; i < totalCount; i++){
+    portfolio->bin1[i] = 0;
+    portfolio->bin2[i] = 0;
+    portfolio->price[i] = 0;
+  }
+  return portfolio;
+}
+
 static void test(Portfolio index,int totalCount) {
   float w = 0;
   float binw[TotalBin];
   memset(binw,0,TotalBin * sizeof(float)); 
   for(int q = 0 ; q < totalCount; q++) {
-    printf("\nWeight for %d security is %f and %d bin weight is %f",index[q].sec.id
-	   ,index[q].weight[0],index[q].sec.binId1, index[q].bin1Weight[0]);
+    printf("\nWeight for %d security is %f and %d bin weight is %f",
+	   index[q].sec.id,
+    	   index[q].weight[0],index[q].sec.binId1,
+	   index[q].bin1Weight[0]);
     w += index[q].weight[0];
     binw[index[q].sec.binId1-1] += index[q].bin1Weight[0];
   } 
@@ -132,18 +157,18 @@ static void test(Portfolio index,int totalCount) {
 int main() { 
   Security *securities;
   generateSecurityData(SecurityPerBin,TotalBin,&securities);
-  printf("Securities Generated\n"); 
   Portfolio index;
   int totalCount = SecurityPerBin * TotalBin;
   generatePortfolio(securities,totalCount,&index);
-  printf("%d\n",index[3].sec.id);
   generateIndexWeights(index,totalCount); 
-  test(index,totalCount); 
 
   Portfolio portfolio;
   generatePortfolio(securities,totalCount,&portfolio); 
   generatePortfolioWeights(portfolio,totalCount); 
-  test(portfolio,totalCount);
+
+  PortfolioData* idx = calculatePortfolioData(index,totalCount);
+  PortfolioData* port = calculatePortfolioData(portfolio,totalCount);
+
   printf("\n");
   return 0;
 } 
