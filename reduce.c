@@ -70,6 +70,29 @@ void generateIndexWeights(PortfolioComponent* portfolio,int totalCount){
  
 }
 
+void generatePortfolioWeights(PortfolioComponent* portfolio,int totalCount) {
+  float totalValue = 0;
+  float* bins = (float *) malloc(TotalBin * sizeof(float));
+  float* securityContribution; 
+  generateData(totalCount,&securityContribution); 
+  memset(bins,0,TotalBin * sizeof(float));
+  for(int q = 0; q < totalCount; q++) {
+    totalValue += securityContribution[q];
+    bins[portfolio[q].sec.binId1-1]  += securityContribution[q];
+  }
+  for(int q = 0; q < totalCount; q++) {
+    float weight  = securityContribution[q]/totalValue;
+    float binWeight = securityContribution[q]/
+      bins[portfolio[q].sec.binId1-1];
+    for(int i = 0; i < TotalDays; i++) {
+      portfolio[q].weight[i] = weight;
+      portfolio[q].bin1Weight[i] = binWeight;
+    }
+
+  }
+ 
+}
+
 void generatePortfolio(Security *securities,int totalCount
 		       ,PortfolioComponent **portfolio) {
   *portfolio = NULL;
@@ -88,15 +111,7 @@ void generatePortfolio(Security *securities,int totalCount
   }
 }
 
-int main() { 
-  Security *securities;
-  generateSecurityData(SecurityPerBin,TotalBin,&securities);
-  printf("Securities Generated\n"); 
-  Portfolio index;
-  int totalCount = SecurityPerBin * TotalBin;
-  generatePortfolio(securities,totalCount,&index);
-  printf("%d\n",index[3].sec.id);
-  generateIndexWeights(index,totalCount); 
+static void test(Portfolio index,int totalCount) {
   float w = 0;
   float binw[TotalBin];
   memset(binw,0,TotalBin * sizeof(float)); 
@@ -110,6 +125,25 @@ int main() {
   for(int i = 0; i < TotalBin; i++) {
     printf("\nBin %d Weight %f",i+1,binw[i]);
   }
+
+}
+
+
+int main() { 
+  Security *securities;
+  generateSecurityData(SecurityPerBin,TotalBin,&securities);
+  printf("Securities Generated\n"); 
+  Portfolio index;
+  int totalCount = SecurityPerBin * TotalBin;
+  generatePortfolio(securities,totalCount,&index);
+  printf("%d\n",index[3].sec.id);
+  generateIndexWeights(index,totalCount); 
+  test(index,totalCount); 
+
+  Portfolio portfolio;
+  generatePortfolio(securities,totalCount,&portfolio); 
+  generatePortfolioWeights(portfolio,totalCount); 
+  test(portfolio,totalCount);
   printf("\n");
   return 0;
 } 
