@@ -17,10 +17,11 @@ __global__ void add(double *price,int n) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   __shared__ double returns[256]; 
   //Calculate Log Returns
-  double logRt = 0.0; 
-  if(index < n) {
-    // logRt = log(__int_as_float(price[index+1])) - log(__int_as_float(price[index]));    
-    logRt = price[index]; 
+  double logRt = 0.0;
+  if(index == 0) {
+    returns[0] = 0.0;
+  }else if(index < n) {
+    logRt = log(price[index]) - log(price[index-1]);
     returns[index] = logRt; 
   }
   __syncthreads();
@@ -38,9 +39,6 @@ __global__ void add(double *price,int n) {
     __syncthreads(); 
   }
   __syncthreads();
-  if(index == 0) {
-    printf("%f", returns[n-1]);
-  }
 
   float ravg = returns[n-1]/n; 
   float rdiffSq = (logRt - ravg) * (logRt - ravg); 
@@ -59,7 +57,7 @@ __global__ void add(double *price,int n) {
   }
   __syncthreads();
   if(index == 0) {
-    float vol  = returns[n-1]/(n-1);
+    float vol  = returns[n-1]/(n-2);
     float sd = sqrt(vol); 
     printf("SD  %f Volatility   %f\n",sd,vol); 
   }
