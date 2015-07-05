@@ -1,40 +1,88 @@
 #include <stdio.h>
 
-#define N (2048 * 2048)
-#define THREADS_PER_BLOCK 512
+#define N 256
+#define THREADS_PER_BLOCK 256
 
-__global__ void add(int *a,int *b,int *c,int n) { 
-  int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < n) {
-    c[index] = a[index] + b[index]; 
-  }
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+  if (code != cudaSuccess) 
+    {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+    }
 }
 
-int main(void) {
-  int *a,*b,*c; 
-  int *d_a,*d_b,*d_c;
-  int size = N * sizeof(int);
-  cudaMalloc((void **)&d_a,size);
-  cudaMalloc((void **)&d_b,size); 
-  cudaMalloc((void **)&d_c,size); 
-  a = (int *)malloc(size);
-  b = (int *)malloc(size); 
-  c = (int *)malloc(size); 
-  for(int i = 0; i < N;i++) {
-    a[i] = i+1;
-    b[i] = i+1; 
+__global__ void add(double *price,int n) { 
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  __shared__ double returns[256]; 
+  //Calculate Log Returns
+  double logRt = 0.0; 
+  if(index < n) {
+    // logRt = log(__int_as_float(price[index+1])) - log(__int_as_float(price[index]));    
+    logRt = price[index]; 
+    returns[index] = logRt; 
+  }
+  __syncthreads();
+
+  
+  //find average of returns
+  int idx = 2; 
+  int back = 1;
+  while(idx <= (n+1)) { 
+  if((index+1) % idx == 0) { 
+    returns[index] = returns[index] + returns[index-back]; 
+  }
+  idx = idx * 2;
+  back = back * 2;
+    __syncthreads(); 
+  }
+  __syncthreads();
+  if(index == 0) {
+    printf("%f", returns[n-1]);
   }
 
-  cudaMemcpy(d_a,a,size,cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_b,b,size,cudaMemcpyHostToDevice); 
-  add<<<(N + THREADS_PER_BLOCK-1)/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_a,d_b,d_c,N);
-  cudaMemcpy(c,d_c,size,cudaMemcpyDeviceToHost); 
-  printf("Hello world %d\n",c[100]);
-  free(a);
-  free(b);
-  free(c);
-  cudaFree(d_a);
-  cudaFree(d_b); 
-  cudaFree(d_c); 
+  float ravg = returns[n-1]/n; 
+  float rdiffSq = (logRt - ravg) * (logRt - ravg); 
+  __syncthreads(); 
+  returns[index] = rdiffSq; 
+  __syncthreads(); 
+  idx = 2; 
+  back = 1;
+  while(idx <= (n + 1)) { 
+  if((index+1) % idx == 0) { 
+      returns[index] = returns[index] + returns[index-back]; 
+    }
+  idx = idx * 2;
+  back = back * 2;
+    __syncthreads(); 
+  }
+  __syncthreads();
+  if(index == 0) {
+    float vol  = returns[n-1]/(n-1);
+    float sd = sqrt(vol); 
+    printf("SD  %f Volatility   %f\n",sd,vol); 
+  }
+}
+  
+
+int main(void) {
+  double *price; 
+  double *d_price;
+  int size = N * sizeof(double);
+  cudaMalloc((void **)&d_price,size);
+
+  price = (double *)malloc(size);
+
+  for(int i = 0; i < N;i++) {
+    price[i] = i+1;
+  }
+
+  cudaMemcpy(d_price,price,size,cudaMemcpyHostToDevice); 
+  add<<<(N + THREADS_PER_BLOCK-1)/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_price,N);
+  gpuErrchk( cudaPeekAtLastError() );
+  gpuErrchk( cudaDeviceSynchronize() ); 
+  free(price);
+  cudaFree(d_price);
   return 0;
 }
